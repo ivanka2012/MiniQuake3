@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(quake3e)
 
-
 option(USE_SDL "" ON)
 option(USE_CURL "" ON)
 option(USE_LOCAL_HEADERS "" ON)
@@ -9,9 +8,6 @@ option(USE_VULKAN "" OFF)
 option(USE_SYSTEM_JPEG "" OFF)
 
 option(USE_RENDERER_DLOPEN "" OFF)
-
-
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules)
 
 aux_source_directory(code/libjpeg JPEG_SRCS)
 add_library(jpeg ${JPEG_SRCS})
@@ -23,7 +19,6 @@ add_library(server ${SERVER_SRCS})
 add_library(server_ded ${SERVER_SRCS})
 target_compile_definitions(server_ded PUBLIC -DDEDICATED)
 
-
 aux_source_directory(code/qcommon QCOMMON_SRCS)
 list(FILTER QCOMMON_SRCS EXCLUDE REGEX ".*vm_[alx].*.c")
 
@@ -33,10 +28,16 @@ target_link_libraries(qcommon PRIVATE server)
 add_library(qcommon_ded ${QCOMMON_SRCS} ${VM_SRC})
 target_link_libraries(qcommon_ded PUBLIC server_ded)
 
-
 aux_source_directory(code/botlib BOTLIB_SRCS)
 add_library(botlib ${BOTLIB_SRCS})
 target_compile_definitions(botlib PRIVATE -DBOTLIB)
+
+if(WIN32)
+    #target_link_libraries(quake3e winmm comctl32 ws2_32)
+    target_link_libraries(qcommon PRIVATE ws2_32)
+	target_link_libraries(qcommon_ded PRIVATE ws2_32)
+	#target_link_libraries(quake3e.ded winmm comctl32 ws2_32)
+endif(WIN32)
 
 
 aux_source_directory(code/client CLIENT_SRCS)
@@ -52,10 +53,17 @@ if(USE_VULKAN)
     target_compile_definitions(client PRIVATE -DUSE_VULKAN_API)
 endif(USE_VULKAN)
 
-
+if(WIN32)
+	target_link_libraries(server PRIVATE qcommon botlib)
+	target_link_libraries(server_ded PRIVATE qcommon_ded botlib)
+endif(WIN32)
 
 aux_source_directory(code/renderercommon RENDERER_COMMON_SRCS)
 add_library(renderer_common ${RENDERER_COMMON_SRCS})
+
+if(WIN32)
+	target_link_libraries(renderer_common PRIVATE qcommon)
+endif(WIN32)
 
 
 aux_source_directory(code/renderer RENDERER_SRCS)
@@ -72,11 +80,10 @@ if(USE_SDL)
     aux_source_directory(code/sdl SDL_SRCS)
     add_library(qsdl ${SDL_SRCS})
     find_package(SDL2 REQUIRED)
-    target_link_libraries(qsdl SDL2::Main)
+    target_link_libraries(qsdl SDL2::SDL2-static)
     if(USE_VULKAN)
         target_compile_definitions(qsdl PRIVATE -DUSE_VULKAN_API)
     endif(USE_VULKAN)
-
 endif()
 
 if(UNIX)
@@ -140,6 +147,7 @@ endif()
 
 
 add_executable(quake3e ${EXE_TYPE} ${VM_SRCS} ${Q3_SRCS} ${Q3_UI_SRCS})
+
 target_link_libraries(quake3e client botlib)
 
 if(USE_SDL)
@@ -157,6 +165,6 @@ add_executable(quake3e.ded ${EXE_TYPE} ${VM_SRCS} ${Q3_SRCS})
 target_link_libraries(quake3e.ded qcommon_ded botlib)
 
 if(WIN32)
-    target_link_libraries(quake3e winmm comctl32 ws2_32)
-    target_link_libraries(quake3e-server winmm comctl32 ws2_32)
+    target_link_libraries(quake3e comctl32)
+	target_link_libraries(quake3e.ded winmm comctl32)
 endif(WIN32)

@@ -20,6 +20,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 
+#ifdef WIN32
+#include <windows.h>
+#endif 
 #ifdef USE_LOCAL_HEADERS
 #	include "SDL.h"
 #ifdef USE_VULKAN_API

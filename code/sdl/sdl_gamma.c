@@ -20,6 +20,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #ifdef USE_LOCAL_HEADERS
 #	include "SDL.h"
 #else
@@ -62,7 +65,6 @@ void GLimp_SetGamma( unsigned char red[256], unsigned char green[256], unsigned 
 	}
 
 #ifdef _WIN32
-#include <windows.h>
 
 	// Win2K and newer put this odd restriction on gamma ramps...
 	{
