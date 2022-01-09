@@ -1,9 +1,7 @@
-# Quake3e
+# MiniQuake3
 
-[![build](../../workflows/build/badge.svg)](../../actions?query=workflow%3Abuild) * <a href="https://discord.com/invite/X3Exs4C"><img src="https://img.shields.io/discord/314456230649135105?color=7289da&logo=discord&logoColor=white" alt="Discord server" /></a>
-
-This is a modern Quake III Arena engine aimed to be fast, secure and compatible with all existing Q3A mods.
-It is based on last non-SDL source dump of [ioquake3](https://github.com/ioquake/ioq3) with latest upstream fixes applied.
+This is a modern Quake III Arena engine aimed to be easy to transport by packing everything like mods, configs, renderers into a single executable 
+It is based on [Quake3e](https://github.com/ec-/Quake3e), a fork of [ioquake3](https://github.com/ioquake/ioq3), which is a fast, secure, and compatible with all existing Q3A mods.
 
 Go to [Releases](../../releases) section to download latest binaries for your platform or follow [Build Instructions](#build-instructions)
 
