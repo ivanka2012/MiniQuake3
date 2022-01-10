@@ -1,17 +1,14 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
 project(quake3e)
 
 option(USE_SDL "" ON)
 option(USE_CURL "" ON)
 option(USE_LOCAL_HEADERS "" ON)
 option(USE_VULKAN "" OFF)
-option(USE_SYSTEM_JPEG "" OFF)
 
 option(USE_RENDERER_DLOPEN "" OFF)
 
-aux_source_directory(code/libjpeg JPEG_SRCS)
-add_library(jpeg ${JPEG_SRCS})
-
+find_package(JPEG REQUIRED)
 
 aux_source_directory(code/server SERVER_SRCS)
 list(REMOVE_ITEM SERVER_SRCS code/server/sv_rankings.c)
@@ -45,10 +42,7 @@ if(NOT USE_CURL)
     list(REMOVE_ITEM CLIENT_SRCS code/client/cl_curl.c)
 endif(NOT USE_CURL)
 add_library(client ${CLIENT_SRCS})
-target_link_libraries(client qcommon jpeg)
-if(USE_SYSTEM_JPEG)
-    target_compile_definitions(client PRIVATE -DUSE_SYSTEM_JPEG)
-endif(USE_SYSTEM_JPEG)
+target_link_libraries(client qcommon JPEG::JPEG)
 if(USE_VULKAN)
     target_compile_definitions(client PRIVATE -DUSE_VULKAN_API)
 endif(USE_VULKAN)
