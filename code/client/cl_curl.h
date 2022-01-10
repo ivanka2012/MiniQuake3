@@ -38,8 +38,41 @@ extern cvar_t *cl_cURLLib;
 #define ALTERNATE_CURL_LIB "libcurl.so.3"
 #endif
 
-#include <curl/curl.h>
+#ifdef USE_LOCAL_HEADERS
+  #include "curl/curl.h"
+#else
+  #include <curl/curl.h>
+#endif
 
+
+#ifdef USE_CURL_DLOPEN
+extern char* (*qcurl_version)(void);
+
+extern CURL* (*qcurl_easy_init)(void);
+extern CURLcode (*qcurl_easy_setopt)(CURL *curl, CURLoption option, ...);
+extern CURLcode (*qcurl_easy_perform)(CURL *curl);
+extern void (*qcurl_easy_cleanup)(CURL *curl);
+extern CURLcode (*qcurl_easy_getinfo)(CURL *curl, CURLINFO info, ...);
+extern void (*qcurl_easy_reset)(CURL *curl);
+extern const char *(*qcurl_easy_strerror)(CURLcode);
+
+extern CURLM* (*qcurl_multi_init)(void);
+extern CURLMcode (*qcurl_multi_add_handle)(CURLM *multi_handle,
+						CURL *curl_handle);
+extern CURLMcode (*qcurl_multi_remove_handle)(CURLM *multi_handle,
+						CURL *curl_handle);
+extern CURLMcode (*qcurl_multi_fdset)(CURLM *multi_handle,
+						fd_set *read_fd_set,
+						fd_set *write_fd_set,
+						fd_set *exc_fd_set,
+						int *max_fd);
+extern CURLMcode (*qcurl_multi_perform)(CURLM *multi_handle,
+						int *running_handles);
+extern CURLMcode (*qcurl_multi_cleanup)(CURLM *multi_handle);
+extern CURLMsg *(*qcurl_multi_info_read)(CURLM *multi_handle,
+						int *msgs_in_queue);
+extern const char *(*qcurl_multi_strerror)(CURLMcode);
+#else
 #define qcurl_version curl_version
 
 #define qcurl_easy_init curl_easy_init
@@ -59,6 +92,7 @@ extern cvar_t *cl_cURLLib;
 #define qcurl_multi_cleanup curl_multi_cleanup
 #define qcurl_multi_info_read curl_multi_info_read
 #define qcurl_multi_strerror curl_multi_strerror
+#endif
 
 qboolean CL_cURL_Init( void );
 void CL_cURL_Shutdown( void );

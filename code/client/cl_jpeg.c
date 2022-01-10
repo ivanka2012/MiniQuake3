@@ -24,6 +24,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 //#include "../qcommon/q_shared.h"
 #include <setjmp.h>
 
+/*
+ * Include file for users of JPEG library.
+ * You will need to have included system headers that define at least
+ * the typedefs FILE and size_t before you can include jpeglib.h.
+ * (stdio.h is sufficient on ANSI-conforming systems.)
+ * You may also wish to include "jerror.h".
+ */
+
 #include <jpeglib.h>
 
 /* Catching errors, as done in libjpeg's example.c */

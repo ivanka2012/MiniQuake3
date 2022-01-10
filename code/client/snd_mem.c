@@ -51,21 +51,19 @@ short *sfxScratchBuffer = NULL;
 sfx_t *sfxScratchPointer = NULL;
 int	   sfxScratchIndex = 0;
 
-
-void SND_free( sndBuffer *v )
-{
+void	SND_free(sndBuffer *v) {
 	*(sndBuffer **)v = freelist;
 	freelist = (sndBuffer*)v;
 	inUse += sizeof(sndBuffer);
-	totalInUse -= sizeof(sndBuffer); // -EC-
 }
 
-
-sndBuffer *SND_malloc( void ) {
+sndBuffer*	SND_malloc(void) {
 	sndBuffer *v;
-
-	while ( freelist == NULL )
+redo:
+	if (freelist == NULL) {
 		S_FreeOldestSound();
+		goto redo;
+	}
 
 	inUse -= sizeof(sndBuffer);
 	totalInUse += sizeof(sndBuffer);
@@ -76,86 +74,36 @@ sndBuffer *SND_malloc( void ) {
 	return v;
 }
 
-
-void SND_setup( void ) 
-{
+void SND_setup(void) {
 	sndBuffer *p, *q;
 	cvar_t	*cv;
-	int scs, sz;
-	static int old_scs = -1;
+	int scs;
 
 	cv = Cvar_Get( "com_soundMegs", DEF_COMSOUNDMEGS, CVAR_LATCH | CVAR_ARCHIVE );
-	Cvar_CheckRange( cv, "1", "512", CV_INTEGER );
 
-	scs = ( cv->integer * /*1536*/ 12 * dma.speed ) / 22050;
-	scs *= 128;
+	scs = (cv->integer*1536);
 
-	sz = scs * sizeof( sndBuffer );
-
-	// realloc buffer if com_comSoundMegs changed
-	if ( old_scs != scs ) {
-		if ( buffer != NULL ) {
-			free( buffer );
-			buffer = NULL;
-		}
-		old_scs = scs;
-	}
-
-	if ( buffer == NULL ) {
-		buffer = malloc( sz );
-	}
-
-	// -EC-
-	if ( buffer == NULL ) {
-		Com_Error( ERR_FATAL, "Error allocating %i bytes for sound buffer", sz );
-	} else {
-		Com_Memset( buffer, 0, sz );
-	}
-
-	sz = SND_CHUNK_SIZE * sizeof(short) * 4;
-
+	buffer = malloc(scs*sizeof(sndBuffer) );
 	// allocate the stack based hunk allocator
-	// -EC-
-	if ( sfxScratchBuffer == NULL ) {
-		sfxScratchBuffer = malloc( sz );	//Hunk_Alloc(SND_CHUNK_SIZE * sizeof(short) * 4);
-	}
-
-	// clear scratch buffer -EC-
-	if ( sfxScratchBuffer == NULL ) {
-		Com_Error( ERR_FATAL, "Error allocating %i bytes for sfxScratchBuffer",	sz );
-	} else {
-		Com_Memset( sfxScratchBuffer, 0, sz );
-	}
-
+	sfxScratchBuffer = malloc(SND_CHUNK_SIZE * sizeof(short) * 4);	//Hunk_Alloc(SND_CHUNK_SIZE * sizeof(short) * 4);
 	sfxScratchPointer = NULL;
 
-	inUse = scs * sizeof( sndBuffer );
-	totalInUse = 0; // -EC-
-
-	p = buffer;
+	inUse = scs*sizeof(sndBuffer);
+	p = buffer;;
 	q = p + scs;
 	while (--q > p)
 		*(sndBuffer **)q = q-1;
-
+	
 	*(sndBuffer **)q = NULL;
 	freelist = p + scs - 1;
 
-	Com_Printf( "Sound memory manager started\n" );
+	Com_Printf("Sound memory manager started\n");
 }
 
-
-void SND_shutdown( void )
+void SND_shutdown(void)
 {
-	if ( sfxScratchBuffer ) 
-	{
-		free( sfxScratchBuffer );
-		sfxScratchBuffer = NULL;
-	}
-	if ( buffer ) 
-	{
-		free( buffer );
-		buffer = NULL;
-	}
+		free(sfxScratchBuffer);
+		free(buffer);
 }
 
 /*
@@ -284,9 +232,9 @@ qboolean S_LoadSound( sfx_t *sfx )
 		Com_DPrintf(S_COLOR_YELLOW "WARNING: %s is not a 22kHz audio file\n", sfx->soundName);
 	}
 
-	samples = Hunk_AllocateTempMemory(info.samples * sizeof(short) * 2);
+	samples = Hunk_AllocateTempMemory(info.channels * info.samples * sizeof(short) * 2);
 
-	sfx->lastTimeUsed = s_soundtime + 1; // Com_Milliseconds()+1
+	sfx->lastTimeUsed = Com_Milliseconds()+1;
 
 	// each of these compression schemes works just fine
 	// but the 16bit quality is much nicer and with a local

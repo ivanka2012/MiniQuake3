@@ -100,13 +100,9 @@ static int S_FindRIFFChunk( fileHandle_t f, char *chunk ) {
 	return -1;
 }
 
-
 /*
 =================
 S_ByteSwapRawSamples
-
-If raw data has been loaded in little endien binary form, this must be done.
-If raw data was calculated, as with ADPCM, this should not be called.
 =================
 */
 static void S_ByteSwapRawSamples( int samples, int width, int s_channels, const byte *data ) {
@@ -126,7 +122,6 @@ static void S_ByteSwapRawSamples( int samples, int width, int s_channels, const 
 		((short *)data)[i] = LittleShort( ((short *)data)[i] );
 	}
 }
-
 
 /*
 =================
@@ -207,7 +202,7 @@ void *S_WAV_CodecLoad(const char *filename, snd_info_t *info)
 
 	// Try to open the file
 	FS_FOpenFileRead(filename, &file, qtrue);
-	if ( file == FS_INVALID_HANDLE )
+	if(!file)
 	{
 		return NULL;
 	}

@@ -19,7 +19,7 @@ along with Quake III Arena source code; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
-// snd_local.h -- private sound definitions
+// snd_local.h -- private sound definations
 
 
 #include "../qcommon/q_shared.h"
@@ -38,14 +38,14 @@ typedef struct {
 } portable_samplepair_t;
 
 typedef struct adpcm_state {
-	short	sample;		/* Previous output value */
-	char	index;		/* Index into stepsize table */
+    short	sample;		/* Previous output value */
+    char	index;		/* Index into stepsize table */
 } adpcm_state_t;
 
 typedef	struct sndBuffer_s {
 	short					sndChunk[SND_CHUNK_SIZE];
 	struct sndBuffer_s		*next;
-	int						size;
+    int						size;
 	adpcm_state_t			adpcm;
 } sndBuffer;
 
@@ -54,31 +54,30 @@ typedef struct sfx_s {
 	qboolean		defaultSound;			// couldn't be loaded, so use buzz
 	qboolean		inMemory;				// not in Memory
 	qboolean		soundCompressed;		// not in Memory
-	int				soundCompressionMethod;
+	int				soundCompressionMethod;	
 	int 			soundLength;
-	int				soundChannels;
+	int			soundChannels;
 	char 			soundName[MAX_QPATH];
 	int				lastTimeUsed;
 	struct sfx_s	*next;
 } sfx_t;
 
 typedef struct {
-	unsigned int channels;
-	unsigned int samples;				// mono samples in buffer
+	int			channels;
+	int			samples;				// mono samples in buffer
 	int			fullsamples;			// samples with all channels in buffer (samples divided by channels)
 	int			submission_chunk;		// don't mix less than this #
 	int			samplebits;
 	int			isfloat;
 	int			speed;
 	byte		*buffer;
-	const char	*driver;
 } dma_t;
-
-extern byte *dma_buffer2;
 
 #define START_SAMPLE_IMMEDIATE	0x7fffffff
 
 #define MAX_DOPPLER_SCALE 50.0f //arbitrary
+
+#define THIRD_PERSON_THRESHOLD_SQ (48.0f*48.0f)
 
 typedef struct loopSound_s {
 	vec3_t		origin;
@@ -108,11 +107,13 @@ typedef struct
 	qboolean	fixed_origin;	// use origin instead of fetching entnum's origin
 	sfx_t		*thesfx;		// sfx structure
 	qboolean	doppler;
+	qboolean	fullVolume;
 } channel_t;
 
 
-#define WAV_FORMAT_PCM			0x0001
-#define WAVE_FORMAT_IEEE_FLOAT	0x0003
+#define	WAV_FORMAT_PCM		1
+#define WAVE_FORMAT_IEEE_FLOAT 3
+
 
 typedef struct {
 	int			format;
@@ -127,11 +128,11 @@ typedef struct {
 typedef struct
 {
 	void (*Shutdown)(void);
-	void (*StartSound)( const vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx );
+	void (*StartSound)( vec3_t origin, int entnum, int entchannel, sfxHandle_t sfx );
 	void (*StartLocalSound)( sfxHandle_t sfx, int channelNum );
 	void (*StartBackgroundTrack)( const char *intro, const char *loop );
 	void (*StopBackgroundTrack)( void );
-	void (*RawSamples)(int samples, int rate, int width, int channels, const byte *data, float volume);
+	void (*RawSamples)(int stream, int samples, int rate, int width, int channels, const byte *data, float volume, int entityNum);
 	void (*StopAllSounds)( void );
 	void (*ClearLoopingSounds)( qboolean killall );
 	void (*AddLoopingSound)( int entityNum, const vec3_t origin, const vec3_t velocity, sfxHandle_t sfx );
@@ -139,13 +140,20 @@ typedef struct
 	void (*StopLoopingSound)(int entityNum );
 	void (*Respatialize)( int entityNum, const vec3_t origin, vec3_t axis[3], int inwater );
 	void (*UpdateEntityPosition)( int entityNum, const vec3_t origin );
-	void (*Update)( int msec );
+	void (*Update)( void );
 	void (*DisableSounds)( void );
 	void (*BeginRegistration)( void );
 	sfxHandle_t (*RegisterSound)( const char *sample, qboolean compressed );
 	void (*ClearSoundBuffer)( void );
 	void (*SoundInfo)( void );
 	void (*SoundList)( void );
+#ifdef USE_VOIP
+	void (*StartCapture)( void );
+	int (*AvailableCaptureSamples)( void );
+	void (*Capture)( int samples, byte *data );
+	void (*StopCapture)( void );
+	void (*MasterGain)( float gain );
+#endif
 } soundInterface_t;
 
 
@@ -170,6 +178,15 @@ void	SNDDMA_BeginPainting (void);
 
 void	SNDDMA_Submit(void);
 
+#ifdef USE_VOIP
+void SNDDMA_StartCapture(void);
+int SNDDMA_AvailableCaptureSamples(void);
+void SNDDMA_Capture(int samples, byte *data);
+void SNDDMA_StopCapture(void);
+void SNDDMA_MasterGain(float val);
+#endif
+
+
 //====================================================================
 
 #define	MAX_CHANNELS			96
@@ -178,22 +195,21 @@ extern	channel_t   s_channels[MAX_CHANNELS];
 extern	channel_t   loop_channels[MAX_CHANNELS];
 extern	int		numLoopChannels;
 
-extern	int		s_soundtime;
 extern	int		s_paintedtime;
-extern	int		s_rawend;
 extern	vec3_t	listener_forward;
 extern	vec3_t	listener_right;
 extern	vec3_t	listener_up;
 extern	dma_t	dma;
 
 #define	MAX_RAW_SAMPLES	16384
-extern	portable_samplepair_t	s_rawsamples[MAX_RAW_SAMPLES];
+#define MAX_RAW_STREAMS (MAX_CLIENTS * 2 + 1)
+extern	portable_samplepair_t s_rawsamples[MAX_RAW_STREAMS][MAX_RAW_SAMPLES];
+extern	int		s_rawend[MAX_RAW_STREAMS];
 
 extern cvar_t *s_volume;
 extern cvar_t *s_musicVolume;
+extern cvar_t *s_muted;
 extern cvar_t *s_doppler;
-extern cvar_t *s_muteWhenUnfocused;
-extern cvar_t *s_muteWhenMinimized;
 
 extern cvar_t *s_testsound;
 
@@ -202,9 +218,11 @@ qboolean S_LoadSound( sfx_t *sfx );
 void		SND_free(sndBuffer *v);
 sndBuffer*	SND_malloc( void );
 void		SND_setup( void );
-void		SND_shutdown( void );
+void		SND_shutdown(void);
 
 void S_PaintChannels(int endtime);
+
+void S_memoryLoad(sfx_t *sfx);
 
 // spatializes a channel
 void S_Spatialize(channel_t *ch);
@@ -234,3 +252,21 @@ extern sfx_t *sfxScratchPointer;
 extern int	   sfxScratchIndex;
 
 qboolean S_Base_Init( soundInterface_t *si );
+
+// OpenAL stuff
+typedef enum
+{
+	SRCPRI_AMBIENT = 0,	// Ambient sound effects
+	SRCPRI_ENTITY,			// Entity sound effects
+	SRCPRI_ONESHOT,			// One-shot sounds
+	SRCPRI_LOCAL,				// Local sounds
+	SRCPRI_STREAM				// Streams (music, cutscenes)
+} alSrcPriority_t;
+
+typedef int srcHandle_t;
+
+qboolean S_AL_Init( soundInterface_t *si );
+
+#ifdef idppc_altivec
+void S_PaintChannelFrom16_altivec( portable_samplepair_t paintbuffer[PAINTBUFFER_SIZE], int snd_vol, channel_t *ch, const sfx_t *sc, int count, int sampleOffset, int bufferOffset );
+#endif

@@ -26,6 +26,62 @@ cvar_t *cl_cURLLib;
 
 #define ALLOWED_PROTOCOLS ( CURLPROTO_HTTP | CURLPROTO_HTTPS | CURLPROTO_FTP | CURLPROTO_FTPS )
 
+#ifdef USE_CURL_DLOPEN
+
+char* (*qcurl_version)(void);
+
+CURL* (*qcurl_easy_init)(void);
+CURLcode (*qcurl_easy_setopt)(CURL *curl, CURLoption option, ...);
+CURLcode (*qcurl_easy_perform)(CURL *curl);
+void (*qcurl_easy_cleanup)(CURL *curl);
+CURLcode (*qcurl_easy_getinfo)(CURL *curl, CURLINFO info, ...);
+CURL* (*qcurl_easy_duphandle)(CURL *curl);
+void (*qcurl_easy_reset)(CURL *curl);
+const char *(*qcurl_easy_strerror)(CURLcode);
+
+CURLM* (*qcurl_multi_init)(void);
+CURLMcode (*qcurl_multi_add_handle)(CURLM *multi_handle,
+                                                CURL *curl_handle);
+CURLMcode (*qcurl_multi_remove_handle)(CURLM *multi_handle,
+                                                CURL *curl_handle);
+CURLMcode (*qcurl_multi_fdset)(CURLM *multi_handle,
+                                                fd_set *read_fd_set,
+                                                fd_set *write_fd_set,
+                                                fd_set *exc_fd_set,
+                                                int *max_fd);
+CURLMcode (*qcurl_multi_perform)(CURLM *multi_handle,
+                                                int *running_handles);
+CURLMcode (*qcurl_multi_cleanup)(CURLM *multi_handle);
+CURLMsg *(*qcurl_multi_info_read)(CURLM *multi_handle,
+                                                int *msgs_in_queue);
+const char *(*qcurl_multi_strerror)(CURLMcode);
+
+static void *cURLLib = NULL;
+
+/*
+=================
+GPA
+=================
+*/
+static void *GPA(char *str)
+{
+	void *rv;
+
+	rv = Sys_LoadFunction(cURLLib, str);
+	if(!rv)
+	{
+		Com_Printf("Can't load symbol %s\n", str);
+		clc.cURLEnabled = qfalse;
+		return NULL;
+	}
+	else
+	{
+		Com_DPrintf("Loaded symbol %s (0x%p)\n", str, rv);
+		return rv;
+	}
+}
+#endif /* USE_CURL_DLOPEN */
+
 /*
 =================
 CL_cURL_Init
@@ -33,8 +89,73 @@ CL_cURL_Init
 */
 qboolean CL_cURL_Init( void )
 {
+#ifdef USE_CURL_DLOPEN
+	if(cURLLib)
+		return qtrue;
+
+
+	Com_Printf("Loading \"%s\"...", cl_cURLLib->string);
+	if( (cURLLib = Sys_LoadLibrary(cl_cURLLib->string)) == 0 )
+	{
+#ifdef _WIN32
+		return qfalse;
+#else
+		char fn[1024];
+
+		Q_strncpyz( fn, Sys_Pwd(), sizeof( fn ) );
+		strncat( fn, "/", sizeof( fn ) - strlen( fn ) - 1 );
+		strncat( fn, cl_cURLLib->string, sizeof( fn ) - strlen( fn ) - 1 );
+
+		if((cURLLib = Sys_LoadLibrary(fn)) == 0)
+		{
+#ifdef ALTERNATE_CURL_LIB
+			// On some linux distributions there is no libcurl.so.3, but only libcurl.so.4. That one works too.
+			if( (cURLLib = Sys_LoadLibrary(ALTERNATE_CURL_LIB)) == 0 )
+			{
+				return qfalse;
+			}
+#else
+			return qfalse;
+#endif
+		}
+#endif /* _WIN32 */
+	}
+
+	clc.cURLEnabled = qtrue;
+
+	qcurl_version = GPA("curl_version");
+
+	qcurl_easy_init = GPA("curl_easy_init");
+	qcurl_easy_setopt = GPA("curl_easy_setopt");
+	qcurl_easy_perform = GPA("curl_easy_perform");
+	qcurl_easy_cleanup = GPA("curl_easy_cleanup");
+	qcurl_easy_getinfo = GPA("curl_easy_getinfo");
+	qcurl_easy_duphandle = GPA("curl_easy_duphandle");
+	qcurl_easy_reset = GPA("curl_easy_reset");
+	qcurl_easy_strerror = GPA("curl_easy_strerror");
+	
+	qcurl_multi_init = GPA("curl_multi_init");
+	qcurl_multi_add_handle = GPA("curl_multi_add_handle");
+	qcurl_multi_remove_handle = GPA("curl_multi_remove_handle");
+	qcurl_multi_fdset = GPA("curl_multi_fdset");
+	qcurl_multi_perform = GPA("curl_multi_perform");
+	qcurl_multi_cleanup = GPA("curl_multi_cleanup");
+	qcurl_multi_info_read = GPA("curl_multi_info_read");
+	qcurl_multi_strerror = GPA("curl_multi_strerror");
+
+	if(!clc.cURLEnabled)
+	{
+		CL_cURL_Shutdown();
+		Com_Printf("FAIL One or more symbols not found\n");
+		return qfalse;
+	}
+	Com_Printf("OK\n");
+
+	return qtrue;
+#else
 	clc.cURLEnabled = qtrue;
 	return qtrue;
+#endif /* USE_CURL_DLOPEN */
 }
 
 /*
@@ -45,6 +166,31 @@ CL_cURL_Shutdown
 void CL_cURL_Shutdown( void )
 {
 	CL_cURL_Cleanup();
+#ifdef USE_CURL_DLOPEN
+	if(cURLLib)
+	{
+		Sys_UnloadLibrary(cURLLib);
+		cURLLib = NULL;
+	}
+	qcurl_version = NULL;
+
+	qcurl_easy_init = NULL;
+	qcurl_easy_setopt = NULL;
+	qcurl_easy_perform = NULL;
+	qcurl_easy_cleanup = NULL;
+	qcurl_easy_getinfo = NULL;
+	qcurl_easy_duphandle = NULL;
+	qcurl_easy_reset = NULL;
+
+	qcurl_multi_init = NULL;
+	qcurl_multi_add_handle = NULL;
+	qcurl_multi_remove_handle = NULL;
+	qcurl_multi_fdset = NULL;
+	qcurl_multi_perform = NULL;
+	qcurl_multi_cleanup = NULL;
+	qcurl_multi_info_read = NULL;
+	qcurl_multi_strerror = NULL;
+#endif /* USE_CURL_DLOPEN */
 }
 
 void CL_cURL_Cleanup(void)
@@ -378,6 +524,67 @@ Com_DL_Init
 */
 qboolean Com_DL_Init( download_t *dl )
 {
+#ifdef USE_CURL_DLOPEN
+	Com_Printf( "Loading \"%s\"...", cl_cURLLib->string );
+	if( ( dl->func.lib = Sys_LoadLibrary( cl_cURLLib->string ) ) == NULL )
+	{
+#ifdef _WIN32
+		return qfalse;
+#else
+		char fn[1024];
+
+		Q_strncpyz( fn, Sys_Pwd(), sizeof( fn ) );
+		strncat( fn, "/", sizeof( fn ) - strlen( fn ) - 1 );
+		strncat( fn, cl_cURLLib->string, sizeof( fn ) - strlen( fn ) - 1 );
+
+		if ( ( dl->func.lib = Sys_LoadLibrary( fn ) ) == NULL )
+		{
+#ifdef ALTERNATE_CURL_LIB
+			// On some linux distributions there is no libcurl.so.3, but only libcurl.so.4. That one works too.
+			if( ( dl->func.lib = Sys_LoadLibrary( ALTERNATE_CURL_LIB ) ) == NULL )
+			{
+				return qfalse;
+			}
+#else
+			return qfalse;
+#endif
+		}
+#endif /* _WIN32 */
+	}
+
+	Sys_LoadFunctionErrors(); // reset error count;
+
+	dl->func.version = Sys_LoadFunction( dl->func.lib, "curl_version" );
+	dl->func.easy_escape = Sys_LoadFunction( dl->func.lib, "curl_easy_escape" );
+	dl->func.free = Sys_LoadFunction( dl->func.lib, "curl_free" );
+
+	dl->func.easy_init = Sys_LoadFunction( dl->func.lib, "curl_easy_init" );
+	dl->func.easy_setopt = Sys_LoadFunction( dl->func.lib, "curl_easy_setopt" );
+	dl->func.easy_perform = Sys_LoadFunction( dl->func.lib, "curl_easy_perform" );
+	dl->func.easy_cleanup = Sys_LoadFunction( dl->func.lib, "curl_easy_cleanup" );
+	dl->func.easy_getinfo = Sys_LoadFunction( dl->func.lib, "curl_easy_getinfo" );
+	dl->func.easy_strerror = Sys_LoadFunction( dl->func.lib, "curl_easy_strerror" );
+	
+	dl->func.multi_init = Sys_LoadFunction( dl->func.lib, "curl_multi_init" );
+	dl->func.multi_add_handle = Sys_LoadFunction( dl->func.lib, "curl_multi_add_handle" );
+	dl->func.multi_remove_handle = Sys_LoadFunction( dl->func.lib, "curl_multi_remove_handle" );
+	dl->func.multi_perform = Sys_LoadFunction( dl->func.lib, "curl_multi_perform" );
+	dl->func.multi_cleanup = Sys_LoadFunction( dl->func.lib, "curl_multi_cleanup" );
+	dl->func.multi_info_read = Sys_LoadFunction( dl->func.lib, "curl_multi_info_read" );
+	dl->func.multi_strerror = Sys_LoadFunction( dl->func.lib, "curl_multi_strerror" );
+
+	if ( Sys_LoadFunctionErrors() )
+	{
+		Com_DL_Done( dl );
+		Com_Printf( "FAIL: One or more symbols not found\n" );
+		return qfalse;
+	}
+
+	Com_Printf( "OK\n" );
+
+	return qtrue;
+#else
+
 	dl->func.lib = NULL;
 
 	dl->func.version = curl_version;
@@ -400,6 +607,7 @@ qboolean Com_DL_Init( download_t *dl )
 	dl->func.multi_strerror = curl_multi_strerror;
 
 	return qtrue;
+#endif /* USE_CURL_DLOPEN */
 }
 
 

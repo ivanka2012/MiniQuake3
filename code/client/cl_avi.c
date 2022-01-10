@@ -76,18 +76,16 @@ static aviFileData_t afd;
 static byte buffer[ MAX_AVI_BUFFER ];
 static int  bufIndex;
 
-
 /*
 ===============
 SafeFS_Write
 ===============
 */
-static ID_INLINE void SafeFS_Write( const void *buf, int len, fileHandle_t f )
+static ID_INLINE void SafeFS_Write( const void *buffer, int len, fileHandle_t f )
 {
-  if ( FS_Write( buf, len, f ) < len )
-		Com_Error( ERR_DROP, "Failed to write avi file" );
+  if( FS_Write( buffer, len, f ) < len )
+    Com_Error( ERR_DROP, "Failed to write avi file" );
 }
-
 
 /*
 ===============
@@ -99,7 +97,6 @@ static ID_INLINE void WRITE_STRING( const char *s )
   Com_Memcpy( &buffer[ bufIndex ], s, strlen( s ) );
   bufIndex += strlen( s );
 }
-
 
 /*
 ===============
@@ -115,7 +112,6 @@ static ID_INLINE void WRITE_4BYTES( int x )
   bufIndex += 4;
 }
 
-
 /*
 ===============
 WRITE_2BYTES
@@ -128,7 +124,6 @@ static ID_INLINE void WRITE_2BYTES( int x )
   bufIndex += 2;
 }
 
-
 /*
 ===============
 START_CHUNK
@@ -136,19 +131,16 @@ START_CHUNK
 */
 static ID_INLINE void START_CHUNK( const char *s )
 {
-	if( afd.chunkStackTop >= MAX_RIFF_CHUNKS )
-	{
-		Com_Error( ERR_DROP, "ERROR: Top of chunkstack breached" );
-	} 
-	else 
-	{
-		afd.chunkStack[ afd.chunkStackTop ] = bufIndex;
-		afd.chunkStackTop++;
-		WRITE_STRING( s );
-		WRITE_4BYTES( 0 );
-	}
-}
+  if( afd.chunkStackTop == MAX_RIFF_CHUNKS )
+  {
+    Com_Error( ERR_DROP, "ERROR: Top of chunkstack breached" );
+  }
 
+  afd.chunkStack[ afd.chunkStackTop ] = bufIndex;
+  afd.chunkStackTop++;
+  WRITE_STRING( s );
+  WRITE_4BYTES( 0 );
+}
 
 /*
 ===============
@@ -157,30 +149,27 @@ END_CHUNK
 */
 static ID_INLINE void END_CHUNK( void )
 {
-	int endIndex = bufIndex;
+  int endIndex = bufIndex;
 
-	if( afd.chunkStackTop <= 0 )
-	{
-		Com_Error( ERR_DROP, "ERROR: Bottom of chunkstack breached" );
-	} 
-	else
-	{
-		afd.chunkStackTop--;
-		bufIndex = afd.chunkStack[ afd.chunkStackTop ];
-		bufIndex += 4;
-		WRITE_4BYTES( endIndex - bufIndex - 4 );
-		bufIndex = endIndex;
-		bufIndex = PAD( bufIndex, 2 );
-	}
+  if( afd.chunkStackTop <= 0 )
+  {
+    Com_Error( ERR_DROP, "ERROR: Bottom of chunkstack breached" );
+  }
+
+  afd.chunkStackTop--;
+  bufIndex = afd.chunkStack[ afd.chunkStackTop ];
+  bufIndex += 4;
+  WRITE_4BYTES( endIndex - bufIndex - 4 );
+  bufIndex = endIndex;
+  bufIndex = PAD( bufIndex, 2 );
 }
-
 
 /*
 ===============
 CL_WriteAVIHeader
 ===============
 */
-static void CL_WriteAVIHeader( void )
+void CL_WriteAVIHeader( void )
 {
   bufIndex = 0;
   afd.chunkStackTop = 0;
@@ -195,12 +184,10 @@ static void CL_WriteAVIHeader( void )
         WRITE_STRING( "avih" );
         WRITE_4BYTES( 56 );                     //"avih" "chunk" size
         WRITE_4BYTES( afd.framePeriod );        //dwMicroSecPerFrame
-        WRITE_4BYTES( afd.maxRecordSize * afd.frameRate ); //dwMaxBytesPerSec
+        WRITE_4BYTES( afd.maxRecordSize *
+            afd.frameRate );                    //dwMaxBytesPerSec
         WRITE_4BYTES( 0 );                      //dwReserved1
-        if ( afd.pipe )
-          WRITE_4BYTES( 0x100 );                //dwFlags bits IS_INTERLEAVED=0x100
-        else
-          WRITE_4BYTES( 0x110 );                //dwFlags bits HAS_INDEX=0x10 and IS_INTERLEAVED=0x100
+        WRITE_4BYTES( 0x110 );                  //dwFlags bits HAS_INDEX and IS_INTERLEAVED
         WRITE_4BYTES( afd.numVideoFrames );     //dwTotalFrames
         WRITE_4BYTES( 0 );                      //dwInitialFrame
 
@@ -224,7 +211,7 @@ static void CL_WriteAVIHeader( void )
           WRITE_4BYTES( 56 );                   //"strh" "chunk" size
           WRITE_STRING( "vids" );
 
-          if ( afd.motionJpeg && !afd.pipe )
+          if( afd.motionJpeg )
             WRITE_STRING( "MJPG" );
           else
             WRITE_4BYTES( 0 );                  // BI_RGB
@@ -254,11 +241,11 @@ static void CL_WriteAVIHeader( void )
           WRITE_2BYTES( 1 );                    //biPlanes
           WRITE_2BYTES( 24 );                   //biBitCount
 
-          if( afd.motionJpeg && !afd.pipe )     //biCompression
+          if( afd.motionJpeg )                  //biCompression
           {
             WRITE_STRING( "MJPG" );
             WRITE_4BYTES( afd.width *
-              afd.height );                     //biSizeImage
+                afd.height );                   //biSizeImage
           }
           else
           {
@@ -328,7 +315,6 @@ static void CL_WriteAVIHeader( void )
   }
 }
 
-
 static qboolean CL_ValidatePipeFormat( const char *s )
 {
 	while ( *s != '\0' ) 
@@ -343,7 +329,6 @@ static qboolean CL_ValidatePipeFormat( const char *s )
 	}
 	return qtrue;
 }
-
 
 /*
 ===============
@@ -453,7 +438,6 @@ qboolean CL_OpenAVIForWriting( const char *fileName, qboolean pipe )
   return qtrue;
 }
 
-
 /*
 ===============
 CL_CheckFileSize
@@ -491,7 +475,6 @@ static qboolean CL_CheckFileSize( int bytesToAdd )
 	return qfalse;
 }
 
-
 /*
 ===============
 CL_WriteAVIVideoFrame
@@ -499,7 +482,7 @@ CL_WriteAVIVideoFrame
 */
 void CL_WriteAVIVideoFrame( const byte *imageBuffer, int size )
 {
-  unsigned int chunkOffset = afd.fileSize - afd.moviOffset - 8;
+  int   chunkOffset = afd.fileSize - afd.moviOffset - 8;
   int   chunkSize = 8 + size;
   int   paddingSize = PADLEN(size, 2);
   byte  padding[ 4 ] = { 0 };
@@ -508,25 +491,22 @@ void CL_WriteAVIVideoFrame( const byte *imageBuffer, int size )
     return;
 
   // Chunk header + contents + padding
-  if ( CL_CheckFileSize( 8 + size + 2 ) )
+  if( CL_CheckFileSize( 8 + size + 2 ) )
     return;
 
   bufIndex = 0;
   WRITE_STRING( "00dc" );
   WRITE_4BYTES( size );
-  afd.numVideoFrames++;
 
   SafeFS_Write( buffer, 8, afd.f );
   SafeFS_Write( imageBuffer, size, afd.f );
   SafeFS_Write( padding, paddingSize, afd.f );
-
-  if ( afd.pipe )
-    return;
-
   afd.fileSize += ( chunkSize + paddingSize );
+
+  afd.numVideoFrames++;
   afd.moviSize += ( chunkSize + paddingSize );
 
-  if ( size > afd.maxRecordSize )
+  if( size > afd.maxRecordSize )
     afd.maxRecordSize = size;
 
   // Index
@@ -539,7 +519,6 @@ void CL_WriteAVIVideoFrame( const byte *imageBuffer, int size )
 
   afd.numIndices++;
 }
-
 
 #define PCM_BUFFER_SIZE 44100
 
@@ -587,7 +566,6 @@ static void CL_FlushCaptureBuffer( void )
 
     bytesInBuffer = 0;
 }
-
 
 /*
 ===============

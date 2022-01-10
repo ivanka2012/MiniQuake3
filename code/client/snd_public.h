@@ -33,8 +33,8 @@ void S_StopBackgroundTrack( void );
 
 // cinematics and voice-over-network will send raw samples
 // 1.0 volume will be direct output of source samples
-void S_RawSamples (int samples, int rate, int width, int channels, 
-				   const byte *data, float volume);
+void S_RawSamples(int stream, int samples, int rate, int width, int channels,
+				   const byte *data, float volume, int entityNum);
 
 // stop all sounds and the background track
 void S_StopAllSounds( void );
@@ -52,7 +52,7 @@ void S_Respatialize( int entityNum, const vec3_t origin, vec3_t axis[3], int inw
 // let the sound system know where an entity currently is
 void S_UpdateEntityPosition( int entityNum, const vec3_t origin );
 
-void S_Update( int msec );
+void S_Update( int realMsec );
 
 void S_DisableSounds( void );
 
@@ -68,3 +68,15 @@ void S_DisplayFreeMemory(void);
 void S_ClearSoundBuffer( void );
 
 void SNDDMA_Activate( void );
+
+void S_UpdateBackgroundTrack( void );
+
+
+#ifdef USE_VOIP
+void S_StartCapture( void );
+int S_AvailableCaptureSamples( void );
+void S_Capture( int samples, byte *data );
+void S_StopCapture( void );
+void S_MasterGain( float gain );
+#endif
+

@@ -4,6 +4,7 @@ project(quake3e)
 option(USE_SDL "" ON)
 option(USE_CURL "" ON)
 option(USE_VULKAN "" OFF)
+option(USE_OPENAL "" ON)
 
 option(USE_RENDERER_DLOPEN "" OFF)
 
@@ -48,6 +49,12 @@ if(USE_CURL)
     target_link_libraries(client CURL::libcurl)
     target_compile_definitions(client PRIVATE -DUSE_CURL)
 endif(USE_CURL)
+
+if(USE_OPENAL)
+    find_package(OpenAL REQUIRED NO_MODULE) #NO_MODULE because cmake's find module is shit
+    target_link_libraries(client OpenAL::OpenAL)
+    target_compile_definitions(client PRIVATE -DUSE_OPENAL)
+endif(USE_OPENAL)
 
 if(USE_VULKAN)
     target_compile_definitions(client PRIVATE -DUSE_VULKAN_API)
