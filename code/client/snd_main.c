@@ -231,13 +231,13 @@ void S_Update( int realMsec )
 {
 	if(s_muted->integer)
 	{
-		s_muted->integer = qfalse;
-		s_muted->modified = qtrue;
+		//s_muted->integer = qfalse;
+		//s_muted->modified = qtrue;
 	}
 	else
 	{
-		s_muted->integer = qtrue;
-		s_muted->modified = qtrue;
+		//s_muted->integer = qtrue;
+		//s_muted->modified = qtrue;
 	}
 	
 	if( si.Update ) {
