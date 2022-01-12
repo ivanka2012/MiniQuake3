@@ -538,5 +538,7 @@ void S_Shutdown( void )
 	Cmd_RemoveCommand( "s_info" );
 
 	S_CodecShutdown( );
+
+	cls.soundStarted = qfalse;
 }
 
